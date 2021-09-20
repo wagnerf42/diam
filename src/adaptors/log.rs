@@ -49,7 +49,7 @@ where
 
 struct LoggedReducer<R> {
     base: R,
-    span: EnteredSpan,
+    _span: EnteredSpan,
 }
 
 impl<Result, R: Reducer<Result>> Reducer<Result> for LoggedReducer<R> {
@@ -93,7 +93,7 @@ where
             },
             LoggedReducer {
                 base: reducer,
-                span: parallel_span.entered(),
+                _span: parallel_span.entered(),
             },
         )
     }
@@ -128,7 +128,7 @@ where
             tracing::span!(parent: self.father_id.clone(), tracing::Level::TRACE, "parallel");
         LoggedReducer {
             base: self.base.to_reducer(),
-            span: parallel_span.entered(),
+            _span: parallel_span.entered(),
         }
     }
 }
