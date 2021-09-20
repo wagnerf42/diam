@@ -1,7 +1,4 @@
 mod adaptors;
 pub use adaptors::Logged;
+pub use adaptors::Scan;
 pub mod prelude;
-
-pub fn hello() {
-    println!("hello")
-}
