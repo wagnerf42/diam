@@ -1,0 +1,12 @@
+[package]
+name = "diam"
+version = "0.1.0"
+authors = ["Frederic Wagner <frederic.wagner@imag.fr>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rayon="*"
+fast-tracer={git="https://github.com/wagnerf42/fast-tracer"}
+tracing="*"
