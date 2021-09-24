@@ -10,3 +10,4 @@ edition = "2018"
 rayon="*"
 fast-tracer={git="https://github.com/wagnerf42/fast-tracer"}
 tracing="*"
+crossbeam="*"

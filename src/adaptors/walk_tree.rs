@@ -151,8 +151,7 @@ where
 /// ```
 ///
 /// ```
-/// use rayon::prelude::*;
-/// use rayon::iter::walk_tree_prefix;
+/// use diam::prelude::*;
 /// assert_eq!(
 ///     walk_tree_prefix(4, |&e| if e <= 2 { Vec::new() } else {vec![e/2, e/2+1]})
 ///         .sum::<u32>(),
@@ -162,8 +161,7 @@ where
 /// # Example
 ///
 ///    ```
-///    use rayon::prelude::*;
-///    use rayon::iter::walk_tree_prefix;
+///    use diam::prelude::*;
 ///
 ///    struct Node {
 ///        content: u32,
@@ -402,8 +400,7 @@ fn split_vec<T>(v: &mut Vec<T>) -> Option<Vec<T>> {
 /// ```
 ///
 /// ```
-/// use rayon::prelude::*;
-/// use rayon::iter::walk_tree_postfix;
+/// use diam::prelude::*;
 /// assert_eq!(
 ///     walk_tree_postfix(4, |&e| if e <= 2 { Vec::new() } else {vec![e/2, e/2+1]})
 ///         .sum::<u32>(),
@@ -413,8 +410,7 @@ fn split_vec<T>(v: &mut Vec<T>) -> Option<Vec<T>> {
 /// # Example
 ///
 ///    ```
-///    use rayon::prelude::*;
-///    use rayon::iter::walk_tree_postfix;
+///    use diam::prelude::*;
 ///
 ///    struct Node {
 ///        content: u32,
@@ -505,8 +501,7 @@ pub struct WalkTree<S, B, I>(WalkTreePostfix<S, B, I>);
 /// ```
 ///
 /// ```
-/// use rayon::prelude::*;
-/// use rayon::iter::walk_tree_postfix;
+/// use diam::prelude::*;
 /// assert_eq!(
 ///     walk_tree_postfix(4, |&e| if e <= 2 { Vec::new() } else {vec![e/2, e/2+1]})
 ///         .sum::<u32>(),

@@ -9,6 +9,13 @@ pub trait DParallelIterator: ParallelIterator {
     /// generate a graphical display of an iterator's
     /// execution. Be careful that nested iterators need
     /// to both be logged for the display to work.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use diam::prelude::*;
+    /// svg("collect.svg",||(0..1000).into_par_iter().log("collect").collect::<Vec<_>>());
+    /// ```
     fn log(self, label: &'static str) -> Logged<Self> {
         Logged::new(self, label)
     }
@@ -64,7 +71,7 @@ pub trait DIndexedParallelIterator: IndexedParallelIterator {
     /// # Examples
     ///
     /// ```
-    /// use rayon::prelude::*;
+    /// use diam::prelude::*;
     /// assert_eq!((0..10_000).into_par_iter()
     ///                       .by_exponential_blocks()
     ///                       .find_first(|&e| e==4_999), Some(4_999))
@@ -90,7 +97,7 @@ pub trait DIndexedParallelIterator: IndexedParallelIterator {
     /// memory locality (especially if the reduce operation re-use folded data).
     /// # Example
     /// ```
-    /// use rayon::prelude::*;
+    /// use diam::prelude::*;
     /// // during most reductions v1 and v2 fit the cache
     /// let v = (0u32..10_000_000)
     ///     .into_par_iter()
