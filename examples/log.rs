@@ -3,7 +3,7 @@ use fast_tracer::svg;
 
 fn main() {
     svg("sum.svg", || {
-        let s = (0..1000u32)
+        let s = (0..1_000u32)
             .into_par_iter()
             .map(|e| e * 2)
             .log()

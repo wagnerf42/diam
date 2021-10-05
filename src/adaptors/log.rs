@@ -1,6 +1,7 @@
 //! Provides logging for parallel iterators.
 use rayon::iter::plumbing::*;
 use rayon::iter::*;
+use std::cell::Cell;
 use tracing::span::{EnteredSpan, Id};
 
 /// `Logged` is an iterator that logs all tasks created.
@@ -30,11 +31,11 @@ where
     where
         C: UnindexedConsumer<Self::Item>,
     {
-        let start_span = tracing::span!(tracing::Level::TRACE, "parallel");
+        let start_span = tracing::span!(tracing::Level::TRACE, "drive");
         let father_id = start_span.id();
         let logged_consumer = LoggedConsumer {
             base: consumer,
-            father_id,
+            father_id: Cell::new(father_id.map(|id| id.into_u64())),
         };
         let _enter = start_span.enter();
         self.base.drive_unindexed(logged_consumer)
@@ -47,7 +48,8 @@ where
 
 struct LoggedReducer<R> {
     base: R,
-    _span: EnteredSpan,
+    _par_span: EnteredSpan,
+    _seq_span: EnteredSpan,
 }
 
 impl<Result, R: Reducer<Result>> Reducer<Result> for LoggedReducer<R> {
@@ -61,7 +63,7 @@ impl<Result, R: Reducer<Result>> Reducer<Result> for LoggedReducer<R> {
 
 struct LoggedConsumer<C> {
     base: C,
-    father_id: Option<Id>,
+    father_id: Cell<Option<u64>>,
 }
 
 impl<T, C> Consumer<T> for LoggedConsumer<C>
@@ -74,27 +76,30 @@ where
     type Result = C::Result;
 
     fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
+        let sequential_span = tracing::span!(parent: self.father_id.get().map(Id::from_u64), tracing::Level::TRACE, "split");
         let parallel_span =
-            tracing::span!(parent: self.father_id, tracing::Level::TRACE, "parallel");
+            tracing::span!(parent: sequential_span.id(), tracing::Level::TRACE, "parallel");
+        let entered_sequential_span = sequential_span.entered();
         let (left, right, reducer) = self.base.split_at(index);
         (
             LoggedConsumer {
                 base: left,
-                father_id: parallel_span.id(),
+                father_id: Cell::new(parallel_span.id().map(|id| id.into_u64())),
             },
             LoggedConsumer {
                 base: right,
-                father_id: parallel_span.id(),
+                father_id: Cell::new(parallel_span.id().map(|id| id.into_u64())),
             },
             LoggedReducer {
                 base: reducer,
-                _span: parallel_span.entered(),
+                _seq_span: entered_sequential_span,
+                _par_span: parallel_span.entered(),
             },
         )
     }
 
     fn into_folder(self) -> LoggedFolder<C::Folder> {
-        let folder_span = tracing::span!(parent: self.father_id, tracing::Level::TRACE, "fold");
+        let folder_span = tracing::span!(parent: self.father_id.get().map(Id::from_u64), tracing::Level::TRACE, "fold");
         LoggedFolder {
             base: self.base.into_folder(),
             span: folder_span.entered(),
@@ -118,11 +123,16 @@ where
         }
     }
     fn to_reducer(&self) -> LoggedReducer<C::Reducer> {
+        let sequential_span = tracing::span!(parent: self.father_id.get().map(Id::from_u64), tracing::Level::TRACE, "parallel");
+        let entered_sequential_span = sequential_span.entered();
         let parallel_span =
-            tracing::span!(parent: self.father_id.clone(), tracing::Level::TRACE, "parallel");
+            tracing::span!(parent: entered_sequential_span.id(), tracing::Level::TRACE, "parallel");
+        self.father_id
+            .set(parallel_span.id().map(|id| id.into_u64()));
         LoggedReducer {
             base: self.base.to_reducer(),
-            _span: parallel_span.entered(),
+            _seq_span: entered_sequential_span,
+            _par_span: parallel_span.entered(),
         }
     }
 }
