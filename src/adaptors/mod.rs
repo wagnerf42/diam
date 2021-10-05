@@ -11,4 +11,4 @@ pub use walk_tree::{
 mod left;
 pub use left::LeanLeft;
 mod adaptive;
-pub use adaptive::Adaptive;
+// pub use adaptive::Adaptive;

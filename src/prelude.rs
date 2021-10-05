@@ -16,8 +16,8 @@ pub trait DParallelIterator: ParallelIterator {
     /// use diam::prelude::*;
     /// svg("collect.svg",||(0..1000).into_par_iter().log("collect").collect::<Vec<_>>());
     /// ```
-    fn log(self, label: &'static str) -> Logged<Self> {
-        Logged::new(self, label)
+    fn log(self) -> Logged<Self> {
+        Logged::new(self)
     }
 
     /// Create a scan iterator.

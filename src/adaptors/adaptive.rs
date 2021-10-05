@@ -1,5 +1,5 @@
 use rayon::iter::plumbing::*;
-use std::fmt::Debug;
+// use std::fmt::Debug;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crossbeam::channel::Receiver;
@@ -44,7 +44,9 @@ impl<'f, P: Producer> AdaptiveProducer<'f, P> {
         self.size = mid;
         let (left_producer, right_producer) = self.producer.take().unwrap().split_at(mid);
         self.workers.fetch_add(1, Ordering::SeqCst);
-        self.sender.send(Some((right_size, right_producer)));
+        self.sender
+            .send(Some((right_size, right_producer)))
+            .expect("failed sending work");
         self.producer = Some(left_producer);
     }
     fn stop_working(&mut self) {
@@ -56,11 +58,11 @@ impl<'f, P: Producer> AdaptiveProducer<'f, P> {
             }
         }
     }
-    fn fold_block<F>(&mut self, folder: F) -> F
+    fn fold_block<F>(&mut self, mut folder: F) -> F
     where
         F: Folder<P::Item>,
     {
-        let producer = self.producer.unwrap();
+        let producer = self.producer.take().unwrap();
         if self.block_size >= self.size {
             folder = folder.consume_iter(producer.into_iter());
             self.size = 0;
@@ -95,7 +97,7 @@ impl<'f, P: Producer> AdaptiveProducer<'f, P> {
 impl<'f, P: Producer> UnindexedProducer for AdaptiveProducer<'f, P> {
     type Item = P::Item;
 
-    fn split(mut self) -> (Self, Option<Self>) {
+    fn split(self) -> (Self, Option<Self>) {
         let right = AdaptiveProducer {
             producer: None,
             sender: self.sender.clone(),

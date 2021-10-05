@@ -7,16 +7,15 @@ use tracing::span::{EnteredSpan, Id};
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 pub struct Logged<I: ParallelIterator> {
     base: I,
-    label: &'static str,
 }
 
 impl<I: ParallelIterator> Logged<I> {
     /// Create a new `Logged` iterator.
-    pub(crate) fn new(base: I, label: &'static str) -> Logged<I>
+    pub(crate) fn new(base: I) -> Logged<I>
     where
         I: ParallelIterator,
     {
-        Logged { base, label }
+        Logged { base }
     }
 }
 
@@ -35,7 +34,6 @@ where
         let father_id = start_span.id();
         let logged_consumer = LoggedConsumer {
             base: consumer,
-            label: self.label,
             father_id,
         };
         let _enter = start_span.enter();
@@ -63,7 +61,6 @@ impl<Result, R: Reducer<Result>> Reducer<Result> for LoggedReducer<R> {
 
 struct LoggedConsumer<C> {
     base: C,
-    label: &'static str,
     father_id: Option<Id>,
 }
 
@@ -83,12 +80,10 @@ where
         (
             LoggedConsumer {
                 base: left,
-                label: self.label,
                 father_id: parallel_span.id(),
             },
             LoggedConsumer {
                 base: right,
-                label: self.label,
                 father_id: parallel_span.id(),
             },
             LoggedReducer {
@@ -99,7 +94,7 @@ where
     }
 
     fn into_folder(self) -> LoggedFolder<C::Folder> {
-        let folder_span = tracing::span!(parent: self.father_id, tracing::Level::TRACE, "foo");
+        let folder_span = tracing::span!(parent: self.father_id, tracing::Level::TRACE, "fold");
         LoggedFolder {
             base: self.base.into_folder(),
             span: folder_span.entered(),
@@ -119,7 +114,6 @@ where
     fn split_off_left(&self) -> Self {
         LoggedConsumer {
             base: self.base.split_off_left(),
-            label: self.label,
             father_id: self.father_id.clone(),
         }
     }
