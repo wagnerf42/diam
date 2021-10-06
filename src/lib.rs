@@ -28,3 +28,5 @@ where
     };
     rayon::join(logged_oper_a, logged_oper_b)
 }
+
+pub use fast_tracer::{display_svg, svg};
