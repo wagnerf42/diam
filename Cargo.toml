@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 rayon="*"
+# fast-tracer={path="../fast-tracer"}
 fast-tracer={git="https://github.com/wagnerf42/fast-tracer"}
 tracing="*"
 crossbeam="*"

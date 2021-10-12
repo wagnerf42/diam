@@ -1,6 +1,5 @@
 pub use crate::{walk_tree, walk_tree_postfix, walk_tree_prefix};
 use crate::{ExponentialBlocks, Logged, Scan, UniformBlocks};
-pub use fast_tracer::svg;
 pub use rayon::prelude::*;
 
 pub trait DParallelIterator: ParallelIterator {

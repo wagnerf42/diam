@@ -3,3 +3,4 @@
 - par_bridge adapt
 - fish (pas sur que ca soit possible)
 - with_help
+- keep steal counter between flat_map calls

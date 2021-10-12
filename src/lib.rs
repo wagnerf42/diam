@@ -18,14 +18,15 @@ where
     let right_id = father_id.clone();
     let logged_oper_a = move || {
         let a_span = tracing::span!(parent: father_id, tracing::Level::TRACE, "left");
-        let _ = a_span.enter();
+        let _guard = a_span.enter();
         oper_a()
     };
     let logged_oper_b = move || {
         let b_span = tracing::span!(parent: right_id, tracing::Level::TRACE, "right");
-        let _ = b_span.enter();
+        let _guard = b_span.enter();
         oper_b()
     };
+    let _guard = span.enter();
     rayon::join(logged_oper_a, logged_oper_b)
 }
 
