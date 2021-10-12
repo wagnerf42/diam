@@ -34,6 +34,7 @@ where
         let start_span = tracing::span!(tracing::Level::TRACE, "drive");
         let father_id = start_span.id();
         let logged_consumer = LoggedConsumer {
+            left: false,
             base: consumer,
             father_id: Cell::new(father_id.map(|id| id.into_u64())),
         };
@@ -63,6 +64,7 @@ impl<Result, R: Reducer<Result>> Reducer<Result> for LoggedReducer<R> {
 
 struct LoggedConsumer<C> {
     base: C,
+    left: bool,
     father_id: Cell<Option<u64>>,
 }
 
@@ -76,7 +78,11 @@ where
     type Result = C::Result;
 
     fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
-        let sequential_span = tracing::span!(parent: self.father_id.get().map(Id::from_u64), tracing::Level::TRACE, "split");
+        let sequential_span = if self.left {
+            tracing::span!(parent: self.father_id.get().map(Id::from_u64), tracing::Level::TRACE, "left")
+        } else {
+            tracing::span!(parent: self.father_id.get().map(Id::from_u64), tracing::Level::TRACE, "right")
+        };
         let parallel_span =
             tracing::span!(parent: sequential_span.id(), tracing::Level::TRACE, "parallel");
         let entered_sequential_span = sequential_span.entered();
@@ -84,10 +90,12 @@ where
         (
             LoggedConsumer {
                 base: left,
+                left: true,
                 father_id: Cell::new(parallel_span.id().map(|id| id.into_u64())),
             },
             LoggedConsumer {
                 base: right,
+                left: false,
                 father_id: Cell::new(parallel_span.id().map(|id| id.into_u64())),
             },
             LoggedReducer {
@@ -99,10 +107,18 @@ where
     }
 
     fn into_folder(self) -> LoggedFolder<C::Folder> {
-        let folder_span = tracing::span!(parent: self.father_id.get().map(Id::from_u64), tracing::Level::TRACE, "fold");
+        let sequential_span = if self.left {
+            tracing::span!(parent: self.father_id.get().map(Id::from_u64), tracing::Level::TRACE, "left")
+        } else {
+            tracing::span!(parent: self.father_id.get().map(Id::from_u64), tracing::Level::TRACE, "right")
+        };
+        let folder_span =
+            tracing::span!(parent: sequential_span.id(), tracing::Level::TRACE, "fold");
+        let entered_seq = sequential_span.entered();
         LoggedFolder {
             base: self.base.into_folder(),
             span: folder_span.entered(),
+            outer_span: entered_seq,
         }
     }
 
@@ -118,12 +134,17 @@ where
 {
     fn split_off_left(&self) -> Self {
         LoggedConsumer {
+            left: true,
             base: self.base.split_off_left(),
             father_id: self.father_id.clone(),
         }
     }
     fn to_reducer(&self) -> LoggedReducer<C::Reducer> {
-        let sequential_span = tracing::span!(parent: self.father_id.get().map(Id::from_u64), tracing::Level::TRACE, "parallel");
+        let sequential_span = if self.left {
+            tracing::span!(parent: self.father_id.get().map(Id::from_u64), tracing::Level::TRACE, "left")
+        } else {
+            tracing::span!(parent: self.father_id.get().map(Id::from_u64), tracing::Level::TRACE, "right")
+        };
         let entered_sequential_span = sequential_span.entered();
         let parallel_span =
             tracing::span!(parent: entered_sequential_span.id(), tracing::Level::TRACE, "parallel");
@@ -143,6 +164,7 @@ where
 struct LoggedFolder<F> {
     base: F,
     span: EnteredSpan,
+    outer_span: EnteredSpan,
 }
 
 impl<T, F> Folder<T> for LoggedFolder<F>
@@ -156,6 +178,7 @@ where
         LoggedFolder {
             base: self.base.consume(item),
             span: self.span,
+            outer_span: self.outer_span,
         }
     }
 
