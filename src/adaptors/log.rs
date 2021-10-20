@@ -49,12 +49,13 @@ where
 
 struct LoggedReducer<R> {
     base: R,
-    _par_span: EnteredSpan,
+    par_span: EnteredSpan,
     _seq_span: EnteredSpan,
 }
 
 impl<Result, R: Reducer<Result>> Reducer<Result> for LoggedReducer<R> {
     fn reduce(self, left: Result, right: Result) -> Result {
+        std::mem::drop(self.par_span);
         self.base.reduce(left, right)
     }
 }
@@ -101,7 +102,7 @@ where
             LoggedReducer {
                 base: reducer,
                 _seq_span: entered_sequential_span,
-                _par_span: parallel_span.entered(),
+                par_span: parallel_span.entered(),
             },
         )
     }
@@ -153,7 +154,7 @@ where
         LoggedReducer {
             base: self.base.to_reducer(),
             _seq_span: entered_sequential_span,
-            _par_span: parallel_span.entered(),
+            par_span: parallel_span.entered(),
         }
     }
 }
