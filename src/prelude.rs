@@ -1,6 +1,7 @@
 pub use crate::{walk_tree, walk_tree_postfix, walk_tree_prefix};
 use crate::{ExponentialBlocks, Logged, Scan, UniformBlocks};
-pub use rayon::prelude::*;
+pub use fast_tracer::svg;
+use rayon::prelude::*;
 
 pub trait DParallelIterator: ParallelIterator {
     /// Log each task with the `tracing` crate.
@@ -12,8 +13,9 @@ pub trait DParallelIterator: ParallelIterator {
     /// # Example
     ///
     /// ```no_run
+    /// use rayon::prelude::*;
     /// use diam::prelude::*;
-    /// svg("collect.svg",||(0..1000).into_par_iter().log("collect").collect::<Vec<_>>());
+    /// svg("collect.svg",||(0..1000).into_par_iter().log().collect::<Vec<_>>());
     /// ```
     fn log(self) -> Logged<Self> {
         Logged::new(self)
@@ -24,6 +26,7 @@ pub trait DParallelIterator: ParallelIterator {
     /// # Example
     ///
     /// ```
+    /// use rayon::prelude::*;
     /// use diam::prelude::*;
     /// let v = vec![1, 2, 3, 4, 5];
     /// let h = v
@@ -70,6 +73,7 @@ pub trait DIndexedParallelIterator: IndexedParallelIterator {
     /// # Examples
     ///
     /// ```
+    /// use rayon::prelude::*;
     /// use diam::prelude::*;
     /// assert_eq!((0..10_000).into_par_iter()
     ///                       .by_exponential_blocks()
@@ -96,6 +100,7 @@ pub trait DIndexedParallelIterator: IndexedParallelIterator {
     /// memory locality (especially if the reduce operation re-use folded data).
     /// # Example
     /// ```
+    /// use rayon::prelude::*;
     /// use diam::prelude::*;
     /// // during most reductions v1 and v2 fit the cache
     /// let v = (0u32..10_000_000)

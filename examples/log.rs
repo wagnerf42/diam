@@ -1,5 +1,5 @@
 use diam::prelude::*;
-use fast_tracer::svg;
+use rayon::prelude::*;
 
 fn main() {
     svg("sum.svg", || {

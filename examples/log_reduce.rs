@@ -1,4 +1,5 @@
 use diam::prelude::*;
+use rayon::prelude::*;
 
 fn main() {
     diam::display_svg(|| {
