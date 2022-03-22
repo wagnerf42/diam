@@ -8,15 +8,16 @@ use tracing::span::{EnteredSpan, Id};
 #[must_use = "iterator adaptors are lazy and do nothing unless consumed"]
 pub struct Logged<I: ParallelIterator> {
     base: I,
+    tag: &'static str,
 }
 
 impl<I: ParallelIterator> Logged<I> {
     /// Create a new `Logged` iterator.
-    pub(crate) fn new(base: I) -> Logged<I>
+    pub(crate) fn new(base: I, tag: &'static str) -> Logged<I>
     where
         I: ParallelIterator,
     {
-        Logged { base }
+        Logged { base, tag }
     }
 }
 
@@ -37,6 +38,7 @@ where
             left: false,
             base: consumer,
             father_id: Cell::new(father_id.map(|id| id.into_u64())),
+            tag: self.tag,
         };
         let _enter = start_span.enter();
         self.base.drive_unindexed(logged_consumer)
@@ -67,6 +69,7 @@ struct LoggedConsumer<C> {
     base: C,
     left: bool,
     father_id: Cell<Option<u64>>,
+    tag: &'static str,
 }
 
 impl<T, C> Consumer<T> for LoggedConsumer<C>
@@ -93,11 +96,13 @@ where
                 base: left,
                 left: true,
                 father_id: Cell::new(parallel_span.id().map(|id| id.into_u64())),
+                tag: self.tag,
             },
             LoggedConsumer {
                 base: right,
                 left: false,
                 father_id: Cell::new(parallel_span.id().map(|id| id.into_u64())),
+                tag: self.tag,
             },
             LoggedReducer {
                 base: reducer,
@@ -113,8 +118,7 @@ where
         } else {
             tracing::span!(parent: self.father_id.get().map(Id::from_u64), tracing::Level::TRACE, "right")
         };
-        let folder_span =
-            tracing::span!(parent: sequential_span.id(), tracing::Level::TRACE, "fold");
+        let folder_span = tracing::span!(parent: sequential_span.id(), tracing::Level::TRACE, "fold", label=self.tag);
         let entered_seq = sequential_span.entered();
         LoggedFolder {
             base: self.base.into_folder(),
@@ -138,6 +142,7 @@ where
             left: true,
             base: self.base.split_off_left(),
             father_id: self.father_id.clone(),
+            tag: self.tag,
         }
     }
     fn to_reducer(&self) -> LoggedReducer<C::Reducer> {

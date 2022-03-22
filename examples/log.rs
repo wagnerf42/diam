@@ -6,7 +6,7 @@ fn main() {
         let s = (0..1_000u32)
             .into_par_iter()
             .map(|e| e * 2)
-            .log()
+            .log("sum")
             .sum::<u32>();
         assert_eq!(s, 1000 * 999);
     })
