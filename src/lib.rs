@@ -3,7 +3,7 @@ mod adaptors;
 pub(crate) use adaptors::Logged;
 pub(crate) use adaptors::Scan;
 pub use adaptors::{walk_tree, walk_tree_postfix, walk_tree_prefix};
-pub(crate) use adaptors::{ExponentialBlocks, UniformBlocks};
+pub(crate) use adaptors::{ExponentialBlocks, HomogeneousTuples, Tuples, UniformBlocks};
 pub mod prelude;
 
 pub fn join<A, B, RA, RB>(oper_a: A, oper_b: B) -> (RA, RB)

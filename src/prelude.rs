@@ -1,5 +1,5 @@
 pub use crate::{walk_tree, walk_tree_postfix, walk_tree_prefix};
-use crate::{ExponentialBlocks, Logged, Scan, UniformBlocks};
+use crate::{ExponentialBlocks, HomogeneousTuples, Logged, Scan, Tuples, UniformBlocks};
 pub use fast_tracer::svg;
 use rayon::prelude::*;
 
@@ -15,7 +15,7 @@ pub trait DParallelIterator: ParallelIterator {
     /// ```no_run
     /// use rayon::prelude::*;
     /// use diam::prelude::*;
-    /// svg("collect.svg",||(0..1000).into_par_iter().log().collect::<Vec<_>>());
+    /// svg("collect.svg",||(0..1000).into_par_iter().log("collect log").collect::<Vec<_>>());
     /// ```
     fn log(self, tag: &'static str) -> Logged<Self> {
         Logged::new(self, tag)
@@ -57,6 +57,27 @@ pub trait DParallelIterator: ParallelIterator {
 impl<I: ParallelIterator> DParallelIterator for I {}
 
 pub trait DIndexedParallelIterator: IndexedParallelIterator {
+    /// Iterate tuples by tuples instead of items by items.
+    /// The arity of the tuple is disambiguated by type inference.
+    /// # Example
+    ///
+    /// ```
+    /// use rayon::prelude::*;
+    /// use diam::prelude::*;
+    /// assert!((0..1_000)
+    ///     .into_par_iter()
+    ///     .tuples()
+    ///     .map(|(a, b)| a + b)
+    ///     .all(|s| s % 2 == 1));
+    ///
+    /// assert_eq!(vec![(0, 1, 2), (3, 4, 5)], (0..7).into_par_iter().tuples().collect::<Vec<_>>());
+    /// ```
+    fn tuples<T: HomogeneousTuples>(self) -> Tuples<Self, T> {
+        Tuples {
+            base: self,
+            phantom: std::marker::PhantomData,
+        }
+    }
     /// Normally, parallel iterators are recursively divided into tasks in parallel.
     /// This adaptor changes the default behavior by splitting the iterator into a **sequence**
     /// of parallel iterators of increasing sizes.
