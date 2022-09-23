@@ -1,5 +1,5 @@
 pub use crate::{walk_tree, walk_tree_postfix, walk_tree_prefix};
-use crate::{ExponentialBlocks, HomogeneousTuples, Logged, Scan, Tuples, UniformBlocks};
+use crate::{ExponentialBlocks, HomogeneousTuples, Logged, Scan, SplitMap, Tuples, UniformBlocks};
 pub use fast_tracer::svg;
 use rayon::prelude::*;
 
@@ -19,6 +19,30 @@ pub trait DParallelIterator: ParallelIterator {
     /// ```
     fn log(self, tag: &'static str) -> Logged<Self> {
         Logged::new(self, tag)
+    }
+
+    /// Call `split_op` on each item.
+    /// This is a weak version of flat_map except that we stay indexed.
+    ///
+    /// # Example
+    ///
+    ///```
+    /// use rayon::prelude::*;
+    /// use diam::prelude::*;
+    /// assert!((0..4)
+    ///     .into_par_iter()
+    ///     .split_map(|i| (2 * i, 2 * i + 1))
+    ///     .zip(0..8)
+    ///     .all(|(a, b)| a == b));
+    ///```
+    fn split_map<A: Send, O: Fn(Self::Item) -> (A, A) + Send + Sync>(
+        self,
+        split_op: O,
+    ) -> SplitMap<Self, O> {
+        SplitMap {
+            base: self,
+            op: split_op,
+        }
     }
 
     /// Create a scan iterator.

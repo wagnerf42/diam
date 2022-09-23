@@ -11,4 +11,6 @@ pub use walk_tree::{
     walk_tree, walk_tree_postfix, walk_tree_prefix, WalkTree, WalkTreePostfix, WalkTreePrefix,
 };
 mod adaptive;
+mod split_map;
+pub use split_map::SplitMap;
 // pub use adaptive::Adaptive;
