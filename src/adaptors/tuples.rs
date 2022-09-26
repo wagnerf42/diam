@@ -131,12 +131,23 @@ struct SeqTuples<I, T> {
 impl<A, I: Iterator<Item = A>, T: TupleCollect<Item = A>> Iterator for SeqTuples<I, T> {
     type Item = T;
 
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let (low, high) = self.base.size_hint();
+        (low / T::SIZE, high.map(|h| h / T::SIZE))
+    }
+
     fn next(&mut self) -> Option<Self::Item> {
         T::next_from_iter(&mut self.base)
     }
 }
 
-impl<A, I: Iterator<Item = A>, T: TupleCollect<Item = A>> ExactSizeIterator for SeqTuples<I, T> {}
+impl<A, I: ExactSizeIterator<Item = A>, T: TupleCollect<Item = A>> ExactSizeIterator
+    for SeqTuples<I, T>
+{
+    fn len(&self) -> usize {
+        self.base.len() / T::SIZE
+    }
+}
 impl<A, I: DoubleEndedIterator<Item = A>, T: TupleCollect<Item = A>> DoubleEndedIterator
     for SeqTuples<I, T>
 {

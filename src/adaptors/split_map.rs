@@ -156,6 +156,13 @@ where
 {
     type Item = A;
 
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let (low, high) = self.base.size_hint();
+        let extra =
+            if self.first.is_some() { 1 } else { 0 } + if self.last.is_some() { 1 } else { 0 };
+        (low * 2 + extra, high.map(|h| h * 2 + extra))
+    }
+
     fn next(&mut self) -> Option<Self::Item> {
         self.first.take().or_else(|| {
             if let Some(next_t) = self.base.next() {
@@ -215,6 +222,7 @@ where
     type Result = C::Result;
 
     fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
+        eprintln!("splitting at {}", index);
         //TODO: do i need to change index ?? --> i think yes
         let (left, right, reducer) = self.base.split_at(index);
         (
