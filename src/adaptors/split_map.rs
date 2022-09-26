@@ -12,7 +12,7 @@ impl<A, I, O> ParallelIterator for SplitMap<I, O>
 where
     A: Send,
     I: ParallelIterator,
-    O: Fn(I::Item) -> (A, A) + Send + Sync,
+    O: Fn(I::Item) -> [A; 2] + Send + Sync,
 {
     type Item = A;
 
@@ -32,7 +32,7 @@ impl<A, I, O> IndexedParallelIterator for SplitMap<I, O>
 where
     A: Send,
     I: IndexedParallelIterator,
-    O: Fn(I::Item) -> (A, A) + Send + Sync,
+    O: Fn(I::Item) -> [A; 2] + Send + Sync,
 {
     fn len(&self) -> usize {
         self.base.len() * 2
@@ -56,7 +56,7 @@ where
         impl<'o, A, I, O, CB> ProducerCallback<I> for Callback<'o, CB, O>
         where
             A: Send,
-            O: Fn(I) -> (A, A) + Send + Sync,
+            O: Fn(I) -> [A; 2] + Send + Sync,
             CB: ProducerCallback<A>,
         {
             type Output = CB::Output;
@@ -87,7 +87,7 @@ impl<'o, T, A, P, O> Producer for SplitMapProducer<'o, O, P, A>
 where
     A: Send,
     P: Producer<Item = T>,
-    O: Fn(T) -> (A, A) + Sync,
+    O: Fn(T) -> [A; 2] + Sync,
 {
     type Item = A;
 
@@ -123,7 +123,7 @@ where
         } else {
             let (middle_base, far_right_base) = right_base.split_at(1);
             let mut i = middle_base.into_iter();
-            let (last_left, first_right) = (self.op)(i.next().unwrap());
+            let [last_left, first_right] = (self.op)(i.next().unwrap());
             (
                 SplitMapProducer {
                     base: left_base,
@@ -152,14 +152,14 @@ struct SplitMapIterator<'o, O, I, A> {
 impl<'o, O, I, A> Iterator for SplitMapIterator<'o, O, I, A>
 where
     I: Iterator,
-    O: Fn(I::Item) -> (A, A),
+    O: Fn(I::Item) -> [A; 2],
 {
     type Item = A;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.first.take().or_else(|| {
             if let Some(next_t) = self.base.next() {
-                let (a1, a2) = (self.op)(next_t);
+                let [a1, a2] = (self.op)(next_t);
                 self.first = Some(a2);
                 Some(a1)
             } else {
@@ -172,19 +172,19 @@ where
 impl<'o, O, I, A> ExactSizeIterator for SplitMapIterator<'o, O, I, A>
 where
     I: ExactSizeIterator,
-    O: Fn(I::Item) -> (A, A),
+    O: Fn(I::Item) -> [A; 2],
 {
 }
 
 impl<'o, O, I, A> DoubleEndedIterator for SplitMapIterator<'o, O, I, A>
 where
     I: DoubleEndedIterator,
-    O: Fn(I::Item) -> (A, A),
+    O: Fn(I::Item) -> [A; 2],
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.last.take().or_else(|| {
             if let Some(next_t) = self.base.next_back() {
-                let (a1, a2) = (self.op)(next_t);
+                let [a1, a2] = (self.op)(next_t);
                 self.last = Some(a1);
                 Some(a2)
             } else {
@@ -206,7 +206,7 @@ impl<'o, T, C, O, A> Consumer<T> for SplitMapConsumer<'o, C, O>
 where
     A: Send,
     C: UnindexedConsumer<A>,
-    O: Fn(T) -> (A, A) + Sync,
+    O: Fn(T) -> [A; 2] + Sync,
 {
     type Folder = SplitMapFolder<'o, C, O, C::Result>;
 
@@ -247,7 +247,7 @@ impl<'o, T, A, C, O> UnindexedConsumer<T> for SplitMapConsumer<'o, C, O>
 where
     A: Send,
     C: UnindexedConsumer<A>,
-    O: Fn(T) -> (A, A) + Sync,
+    O: Fn(T) -> [A; 2] + Sync,
 {
     fn split_off_left(&self) -> Self {
         SplitMapConsumer {
@@ -271,14 +271,14 @@ impl<'o, T, A, C, O> Folder<T> for SplitMapFolder<'o, C, O, C::Result>
 where
     A: Send,
     C: UnindexedConsumer<A>,
-    O: Fn(T) -> (A, A) + Sync,
+    O: Fn(T) -> [A; 2] + Sync,
 {
     type Result = C::Result;
 
     fn consume(self, item: T) -> Self {
-        let (a1, a2) = (self.op)(item);
-        let result = rayon::iter::once(a1)
-            .chain(rayon::iter::once(a2))
+        let items = (self.op)(item);
+        let result = items
+            .into_par_iter()
             .drive_unindexed(self.base.split_off_left());
         let previous = match self.previous {
             None => Some(result),

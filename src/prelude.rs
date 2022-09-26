@@ -31,11 +31,11 @@ pub trait DParallelIterator: ParallelIterator {
     /// use diam::prelude::*;
     /// assert!((0..4)
     ///     .into_par_iter()
-    ///     .split_map(|i| (2 * i, 2 * i + 1))
+    ///     .split_map(|i| [2 * i, 2 * i + 1])
     ///     .zip(0..8)
     ///     .all(|(a, b)| a == b));
     ///```
-    fn split_map<A: Send, O: Fn(Self::Item) -> (A, A) + Send + Sync>(
+    fn split_map<A: Send, O: Fn(Self::Item) -> [A; 2] + Send + Sync>(
         self,
         split_op: O,
     ) -> SplitMap<Self, O> {
