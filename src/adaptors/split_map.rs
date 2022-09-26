@@ -1,4 +1,6 @@
-use rayon::iter::plumbing::{bridge, Producer, ProducerCallback};
+use rayon::iter::plumbing::{
+    bridge, Consumer, Folder, Producer, ProducerCallback, Reducer, UnindexedConsumer,
+};
 use rayon::prelude::*;
 
 pub struct SplitMap<I, O> {
@@ -18,7 +20,11 @@ where
     where
         C: rayon::iter::plumbing::UnindexedConsumer<Self::Item>,
     {
-        todo!()
+        let consumer = SplitMapConsumer {
+            base: consumer,
+            op: &self.op,
+        };
+        self.base.drive_unindexed(consumer)
     }
 }
 
@@ -185,5 +191,117 @@ where
                 self.first.take()
             }
         })
+    }
+}
+
+/// /////////////////////////////////////
+/// Consumer implementation
+
+struct SplitMapConsumer<'o, C, O> {
+    base: C,
+    op: &'o O,
+}
+
+impl<'o, T, C, O, A> Consumer<T> for SplitMapConsumer<'o, C, O>
+where
+    A: Send,
+    C: UnindexedConsumer<A>,
+    O: Fn(T) -> (A, A) + Sync,
+{
+    type Folder = SplitMapFolder<'o, C, O, C::Result>;
+
+    type Reducer = C::Reducer;
+
+    type Result = C::Result;
+
+    fn split_at(self, index: usize) -> (Self, Self, Self::Reducer) {
+        //TODO: do i need to change index ?? --> i think yes
+        let (left, right, reducer) = self.base.split_at(index);
+        (
+            SplitMapConsumer {
+                base: left,
+                op: self.op,
+            },
+            SplitMapConsumer {
+                base: right,
+                op: self.op,
+            },
+            reducer,
+        )
+    }
+
+    fn into_folder(self) -> Self::Folder {
+        SplitMapFolder {
+            base: self.base,
+            op: self.op,
+            previous: None,
+        }
+    }
+
+    fn full(&self) -> bool {
+        self.base.full()
+    }
+}
+
+impl<'o, T, A, C, O> UnindexedConsumer<T> for SplitMapConsumer<'o, C, O>
+where
+    A: Send,
+    C: UnindexedConsumer<A>,
+    O: Fn(T) -> (A, A) + Sync,
+{
+    fn split_off_left(&self) -> Self {
+        SplitMapConsumer {
+            base: self.base.split_off_left(),
+            op: self.op,
+        }
+    }
+
+    fn to_reducer(&self) -> Self::Reducer {
+        self.base.to_reducer()
+    }
+}
+
+struct SplitMapFolder<'o, C, O, R> {
+    base: C,
+    op: &'o O,
+    previous: Option<R>,
+}
+
+impl<'o, T, A, C, O> Folder<T> for SplitMapFolder<'o, C, O, C::Result>
+where
+    A: Send,
+    C: UnindexedConsumer<A>,
+    O: Fn(T) -> (A, A) + Sync,
+{
+    type Result = C::Result;
+
+    fn consume(self, item: T) -> Self {
+        let (a1, a2) = (self.op)(item);
+        let result = rayon::iter::once(a1)
+            .chain(rayon::iter::once(a2))
+            .drive_unindexed(self.base.split_off_left());
+        let previous = match self.previous {
+            None => Some(result),
+            Some(previous) => {
+                let reducer = self.base.to_reducer();
+                Some(reducer.reduce(previous, result))
+            }
+        };
+        SplitMapFolder {
+            base: self.base,
+            op: self.op,
+            previous,
+        }
+    }
+
+    fn complete(self) -> Self::Result {
+        match self.previous {
+            Some(previous) => previous,
+            None => self.base.into_folder().complete(),
+        }
+    }
+
+    fn full(&self) -> bool {
+        self.base.full()
     }
 }
